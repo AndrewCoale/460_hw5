@@ -40,7 +40,9 @@
                 {lambda {y}  ;
                   {+ x y}}}) ;
 
-;(define times
+(define times `{lambda {x}                                 ; untested, but the logic is there
+                 {lambda {y}                               ;
+                   {if0 y 0 {plus x {times x (- y 1)}}}}}) ;
 
 (module+ test
   (print-only-errors #t))
@@ -60,13 +62,13 @@
        (appE (lamE (s-exp->symbol (first bs))
                    (parse (third (s-exp->list s))))
              (parse (second bs))))]
-    [(s-exp-match? `{letrec {[SYMBOL ANY]} ANY} s)                              ; added in class
+    [(s-exp-match? `{letrec {[SYMBOL ANY]} ANY} s)                              ; added in class {letrec {[name rhs]} body} = ,{let {[name {mk-rec {lambda {name} rhs}}]} body}
      (local [(define bs (s-exp->list (first (s-exp->list (second                ;
                                                           (s-exp->list s))))))  ;
-             (define id (first bs))                                             ; check pg 34 of lecture7b.pdf
-             (define val (second bs))                                           ; {letrec {[name rhs]} body} = ,{let {[name {mk-rec {lambda {name} rhs}}]} body}
+             (define name (first bs))                                             ; check pg 34 of lecture7b.pdf
+             (define rhs (second bs))                                           ; {letrec {[name rhs]} body} = ,{let {[name {mk-rec {lambda {name} rhs}}]} body}
              (define body (third (s-exp->list s)))]                             ;
-       (parse `(let {[,id ,val]} ,body )))]                                     ;
+       (parse `{let {[,name {,mk-rec-fun {lambda {,name} ,rhs}}]} ,body}))]                                     ; comma before mk-rec-fun
     [(s-exp-match? `{lambda {SYMBOL} ANY} s)
      (lamE (s-exp->symbol (first (s-exp->list 
                                   (second (s-exp->list s)))))
@@ -223,3 +225,11 @@
                     (bind 'x (numV 9))
                     (extend-env (bind 'y (numV 8)) mt-env)))
         (numV 8)))
+
+(test (interp (parse `{letrec {[f {lambda {n}
+                                    {if0 n
+                                         0
+                                         {+ {f {+ n -1}} -1}}}]}
+                        {f 10}})
+              mt-env)
+      (numV -10))
